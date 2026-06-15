@@ -52,13 +52,42 @@ export const useCommentsStore = defineStore('comments', () => {
   }
 
   function addComment(comment) {
-    if (!comment || comment.parent) return
+    if (!comment) return
 
-    const exists = comments.value.find((item) => item.id === comment.id)
-    if (!exists && pagination.value.page === 1) {
-      comments.value.unshift(comment)
-      pagination.value.count += 1
+    if (!comment.parent) {
+      const exists = comments.value.find((item) => item.id === comment.id)
+      if (!exists && pagination.value.page === 1) {
+        comments.value.unshift(comment)
+        pagination.value.count += 1
+      }
+      return
     }
+
+    if (insertReply(comments.value, comment)) {
+      pagination.value.count += 1
+    } else {
+      fetchComments(pagination.value.page)
+    }
+  }
+
+  function insertReply(items, reply) {
+    for (const item of items) {
+      if (item.id === reply.parent) {
+        if (!Array.isArray(item.replies)) item.replies = []
+        const exists = item.replies.find((child) => child.id === reply.id)
+        if (!exists) {
+          item.replies.unshift(reply)
+          item.replies_count = (item.replies_count || 0) + 1
+          return true
+        }
+        return false
+      }
+
+      if (item.replies?.length && insertReply(item.replies, reply)) {
+        return true
+      }
+    }
+    return false
   }
 
   function connectWebSocket() {
