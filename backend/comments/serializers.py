@@ -14,21 +14,27 @@ class RecursiveReplySerializer(serializers.Serializer):
 class CommentSerializer(serializers.ModelSerializer):
     replies = RecursiveReplySerializer(many=True, read_only=True)
     replies_count = serializers.SerializerMethodField()
+    parent_text = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = [
             'id', 'parent', 'username', 'email', 'homepage',
             'text', 'image', 'attachment', 'ip_address',
-            'created_at', 'replies', 'replies_count'
+            'created_at', 'replies', 'replies_count', 'parent_text'
         ]
-        read_only_fields = ['id', 'created_at', 'ip_address', 'replies', 'replies_count']
+        read_only_fields = ['id', 'created_at', 'ip_address', 'replies', 'replies_count', 'parent_text']
         extra_kwargs = {
             'email': {'write_only': False},
         }
 
     def get_replies_count(self, obj):
         return obj.replies.count()
+
+    def get_parent_text(self, obj):
+        if not obj.parent_id:
+            return ''
+        return sanitize_html(obj.parent.text)
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
