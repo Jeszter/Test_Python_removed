@@ -5,7 +5,6 @@ until python manage.py showmigrations >/dev/null 2>&1; do
   sleep 2
 done
 
-python manage.py makemigrations --noinput
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 

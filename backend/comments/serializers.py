@@ -87,7 +87,11 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         try:
             challenge = CaptchaChallenge.objects.get(key=captcha_key, used=False)
         except CaptchaChallenge.DoesNotExist:
-            raise serializers.ValidationError({'captcha_value': 'CAPTCHA not found or already used.'})
+            raise serializers.ValidationError({'captcha_value': 'CAPTCHA is expired or not found. Refresh it.'})
+
+        if challenge.is_expired:
+            challenge.delete()
+            raise serializers.ValidationError({'captcha_value': 'CAPTCHA is expired. Refresh it.'})
 
         if challenge.answer.upper() != captcha_value.upper():
             raise serializers.ValidationError({'captcha_value': 'Invalid CAPTCHA value.'})

@@ -1,14 +1,14 @@
-import html
 import io
 import random
-import re
 import string
 from html.parser import HTMLParser
 
+import bleach
 from django.conf import settings
 
 ALLOWED_TAGS = set(settings.ALLOWED_HTML_TAGS)
 ALLOWED_ATTRS = settings.ALLOWED_HTML_ATTRS
+ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
 
 
 class HTMLTagValidator(HTMLParser):
@@ -16,12 +16,15 @@ class HTMLTagValidator(HTMLParser):
         super().__init__()
         self.tag_stack = []
         self.errors = []
+        self.void_elements = {'br', 'hr', 'img', 'input', 'meta', 'link'}
 
     def handle_starttag(self, tag, attrs):
         if tag not in ALLOWED_TAGS:
             self.errors.append(f'Tag <{tag}> is not allowed.')
             return
-        self.tag_stack.append(tag)
+        if tag not in self.void_elements:
+            self.tag_stack.append(tag)
+
         allowed = ALLOWED_ATTRS.get(tag, [])
         for attr_name, _ in attrs:
             if attr_name not in allowed:
@@ -49,17 +52,13 @@ def validate_html_tags(text: str) -> bool:
 
 
 def sanitize_html(text: str) -> str:
-    escaped = html.escape(text)
-    for tag in settings.ALLOWED_HTML_TAGS:
-        escaped = escaped.replace(f'&lt;{tag}&gt;', f'<{tag}>')
-        escaped = escaped.replace(f'&lt;/{tag}&gt;', f'</{tag}>')
-    escaped = re.sub(
-        r'&lt;a href=&quot;([^&]+)&quot;( title=&quot;([^&]*)&quot;)?&gt;',
-        lambda match: f'<a href="{match.group(1)}"{f" title=\"{match.group(3)}\"" if match.group(3) else ""}>',
-        escaped,
+    return bleach.clean(
+        text,
+        tags=settings.ALLOWED_HTML_TAGS,
+        attributes=settings.ALLOWED_HTML_ATTRS,
+        protocols=ALLOWED_PROTOCOLS,
+        strip=True,
     )
-    escaped = escaped.replace('&lt;/a&gt;', '</a>')
-    return escaped
 
 
 def resize_image_if_needed(image_file):
