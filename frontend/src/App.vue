@@ -1,7 +1,7 @@
 <template>
   <div class="app">
     <header class="app-header">
-      <div class="page-container">
+      <div class="page-container header-inner">
         <div>
           <p class="eyebrow">SPA application</p>
           <h1 class="app-title">Comments</h1>
@@ -11,6 +11,10 @@
     </header>
 
     <main class="page-container main-layout">
+      <section class="form-section top-form-section">
+        <CommentForm @submitted="onCommentSubmitted" />
+      </section>
+
       <section class="comments-panel">
         <div class="comments-toolbar">
           <h2>Discussion</h2>
@@ -53,10 +57,6 @@
           :total="store.totalPages"
           @change="store.fetchComments"
         />
-      </section>
-
-      <section class="form-section">
-        <CommentForm @submitted="onCommentSubmitted" />
       </section>
     </main>
 
