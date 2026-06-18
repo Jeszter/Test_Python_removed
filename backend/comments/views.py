@@ -1,9 +1,9 @@
-from rest_framework import generics, status, filters
+from rest_framework import generics, status, filters, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Comment
-from .serializers import CommentSerializer, CommentCreateSerializer, CommentPreviewSerializer
+from .serializers import CommentSerializer, CommentCreateSerializer
 from .utils import generate_captcha_image, sanitize_html
 
 
@@ -38,8 +38,11 @@ class CaptchaView(APIView):
 
 
 class CommentPreviewView(APIView):
+    class InputSerializer(serializers.Serializer):
+        text = serializers.CharField(required=True, allow_blank=False)
+
     def post(self, request):
-        serializer = CommentPreviewSerializer(data=request.data)
+        serializer = self.InputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         return Response({
