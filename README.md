@@ -1,6 +1,14 @@
 # SPA Comments
 
 Single-page comments application with nested replies, CAPTCHA, WebSocket updates and file uploads.
+!Uploaded media files are stored in the backend container for demo deployment. For production use, media storage should be moved to S3-compatible object storage.
+
+
+Application:
+https://generous-adaptation-production-e6cb.up.railway.app
+
+API:
+https://testpythonremoved-production.up.railway.app/api/comments/
 
 ## Stack
 
