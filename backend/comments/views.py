@@ -11,7 +11,6 @@ from rest_framework.response import Response
 from .models import Comment, CaptchaChallenge
 from .serializers import CommentSerializer, CommentCreateSerializer
 from .utils import generate_captcha_text, generate_captcha_image
-from .tasks import notify_new_comment
 
 
 class CommentListCreateView(generics.ListCreateAPIView):
@@ -33,11 +32,6 @@ class CommentListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = serializer.save()
-
-        try:
-            notify_new_comment.delay(comment.id)
-        except Exception:
-            pass
 
         response_serializer = CommentSerializer(comment, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
