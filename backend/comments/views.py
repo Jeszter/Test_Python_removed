@@ -1,16 +1,10 @@
-import uuid
-import base64
-from django.conf import settings
-from django.core.cache import cache
-from django.utils import timezone
-from datetime import timedelta
-
-from rest_framework import generics, filters, status
-from rest_framework.views import APIView
+from rest_framework import generics, status, filters
 from rest_framework.response import Response
-from .models import Comment, CaptchaChallenge
-from .serializers import CommentSerializer, CommentCreateSerializer
-from .utils import generate_captcha_text, generate_captcha_image
+from rest_framework.views import APIView
+
+from .models import Comment
+from .serializers import CommentSerializer, CommentCreateSerializer, CommentPreviewSerializer
+from .utils import generate_captcha_image, sanitize_html
 
 
 class CommentListCreateView(generics.ListCreateAPIView):
@@ -37,51 +31,17 @@ class CommentListCreateView(generics.ListCreateAPIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class CommentDetailView(generics.RetrieveAPIView):
-    queryset = Comment.objects.all()
-    serializer_class = CommentSerializer
+class CaptchaView(APIView):
+    def get(self, request):
+        captcha = generate_captcha_image()
+        return Response(captcha)
 
 
 class CommentPreviewView(APIView):
     def post(self, request):
-        from .utils import sanitize_html, validate_html_tags
-        text = request.data.get('text', '')
-        if not validate_html_tags(text):
-            return Response(
-                {'error': 'Invalid HTML tags in text.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response({'preview': sanitize_html(text)})
-
-
-class CaptchaGenerateView(APIView):
-    def get(self, request):
-        CaptchaChallenge.objects.filter(
-            created_at__lt=timezone.now() - timedelta(seconds=settings.CAPTCHA_TIMEOUT),
-            used=False
-        ).delete()
-
-        text = generate_captcha_text(settings.CAPTCHA_LENGTH)
-        key = str(uuid.uuid4())
-
-        CaptchaChallenge.objects.create(key=key, answer=text)
-
-        image_bytes = generate_captcha_image(text)
-        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        serializer = CommentPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         return Response({
-            'key': key,
-            'image': f'data:image/png;base64,{image_b64}'
+            'text': sanitize_html(serializer.validated_data['text'])
         })
-
-
-class CaptchaValidateView(APIView):
-    def post(self, request):
-        key = request.data.get('key', '')
-        value = request.data.get('value', '')
-        try:
-            challenge = CaptchaChallenge.objects.get(key=key, used=False)
-            valid = not challenge.is_expired and challenge.answer.upper() == value.upper()
-        except CaptchaChallenge.DoesNotExist:
-            valid = False
-        return Response({'valid': valid})
