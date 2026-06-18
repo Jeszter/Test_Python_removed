@@ -31,6 +31,11 @@ class CommentListCreateView(generics.ListCreateAPIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
+class CommentDetailView(generics.RetrieveAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+
+
 class CaptchaView(APIView):
     def get(self, request):
         captcha = generate_captcha_image()
