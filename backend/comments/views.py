@@ -34,7 +34,10 @@ class CommentListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         comment = serializer.save()
 
-        notify_new_comment.delay(comment.id)
+        try:
+            notify_new_comment.delay(comment.id)
+        except Exception:
+            pass
 
         response_serializer = CommentSerializer(comment, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
