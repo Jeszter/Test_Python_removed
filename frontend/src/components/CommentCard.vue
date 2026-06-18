@@ -95,7 +95,9 @@ const props = defineProps({
 const lightbox = useLightboxStore()
 const showReplyForm = ref(false)
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || ''
+const API_ORIGIN = (import.meta.env.VITE_API_URL || '')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '')
 
 const hasReplies = computed(() => Array.isArray(props.comment.replies) && props.comment.replies.length > 0)
 
@@ -125,10 +127,16 @@ const quotedText = computed(() => {
   return text.length > 120 ? `${text.slice(0, 120)}...` : text
 })
 
-
 function mediaUrl(path) {
-  if (path.startsWith('http')) return path
-  return `${API_BASE}${path}`
+  if (!path) {
+    return ''
+  }
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+
+  return `${API_ORIGIN}${path}`
 }
 
 function fileName(path) {
