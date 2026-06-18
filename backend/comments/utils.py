@@ -61,49 +61,68 @@ def sanitize_html(text: str) -> str:
     )
 
 
-def resize_image_if_needed(image_file):
+def normalize_uploaded_image(image_file):
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    from django.core.files.uploadedfile import InMemoryUploadedFile
+
+    allowed_formats = {
+        'JPEG': ('jpg', 'image/jpeg'),
+        'PNG': ('png', 'image/png'),
+        'GIF': ('gif', 'image/gif'),
+    }
+
+    ext = image_file.name.rsplit('.', 1)[-1].lower()
+    if ext not in settings.ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError('Allowed image formats: JPG, GIF, PNG.')
+
     try:
-        from PIL import Image
-        from django.core.files.uploadedfile import InMemoryUploadedFile
-
-        max_w = settings.MAX_IMAGE_WIDTH
-        max_h = settings.MAX_IMAGE_HEIGHT
-
+        image_file.seek(0)
         img = Image.open(image_file)
-        w, h = img.size
+        img.verify()
+        image_file.seek(0)
+        img = Image.open(image_file)
+        fmt = img.format
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise ValueError('Upload a valid JPG, GIF, or PNG image.')
 
-        if w <= max_w and h <= max_h:
-            image_file.seek(0)
-            return image_file
+    if fmt not in allowed_formats:
+        raise ValueError('Allowed image formats: JPG, GIF, PNG.')
 
-        ratio = min(max_w / w, max_h / h)
-        new_w = int(w * ratio)
-        new_h = int(h * ratio)
-        img = img.resize((new_w, new_h), Image.LANCZOS)
+    max_size = (settings.MAX_IMAGE_WIDTH, settings.MAX_IMAGE_HEIGHT)
+    should_resize = img.width > max_size[0] or img.height > max_size[1]
 
-        fmt = img.format or 'JPEG'
-        content_type_map = {
-            'JPEG': 'image/jpeg',
-            'PNG': 'image/png',
-            'GIF': 'image/gif',
-        }
-        content_type = content_type_map.get(fmt, 'image/jpeg')
-
-        buffer = io.BytesIO()
-        img.save(buffer, format=fmt)
-        buffer.seek(0)
-
-        return InMemoryUploadedFile(
-            buffer,
-            'ImageField',
-            image_file.name,
-            content_type,
-            buffer.getbuffer().nbytes,
-            None,
-        )
-    except Exception:
+    if not should_resize:
         image_file.seek(0)
         return image_file
+
+    if fmt == 'GIF':
+        img.seek(0)
+        img = ImageOps.contain(img.copy(), max_size, Image.LANCZOS)
+    else:
+        img = ImageOps.contain(img, max_size, Image.LANCZOS)
+
+    if fmt == 'JPEG' and img.mode not in ('RGB', 'L'):
+        img = img.convert('RGB')
+
+    extension, content_type = allowed_formats[fmt]
+    stem = image_file.name.rsplit('.', 1)[0]
+    filename = f'{stem}.{extension}'
+
+    buffer = io.BytesIO()
+    save_kwargs = {}
+    if fmt == 'JPEG':
+        save_kwargs.update({'quality': 88, 'optimize': True})
+    img.save(buffer, format=fmt, **save_kwargs)
+    buffer.seek(0)
+
+    return InMemoryUploadedFile(
+        buffer,
+        'image',
+        filename,
+        content_type,
+        buffer.getbuffer().nbytes,
+        None,
+    )
 
 
 def generate_captcha_text(length: int = 6) -> str:

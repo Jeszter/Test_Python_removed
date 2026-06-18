@@ -2,7 +2,7 @@ import re
 from django.conf import settings
 from rest_framework import serializers
 from .models import Comment, CaptchaChallenge
-from .utils import sanitize_html, validate_html_tags
+from .utils import normalize_uploaded_image, sanitize_html, validate_html_tags
 
 
 class RecursiveReplySerializer(serializers.Serializer):
@@ -38,6 +38,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
+    image = serializers.FileField(required=False, allow_null=True)
     captcha_key = serializers.CharField(write_only=True)
     captcha_value = serializers.CharField(write_only=True)
 
@@ -67,13 +68,12 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         return sanitize_html(value)
 
     def validate_image(self, value):
-        if value:
-            ext = value.name.rsplit('.', 1)[-1].lower()
-            if ext not in settings.ALLOWED_IMAGE_EXTENSIONS:
-                raise serializers.ValidationError(
-                    f'Allowed formats: {", ".join(settings.ALLOWED_IMAGE_EXTENSIONS).upper()}'
-                )
-        return value
+        if not value:
+            return value
+        try:
+            return normalize_uploaded_image(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
 
     def validate_attachment(self, value):
         if value:

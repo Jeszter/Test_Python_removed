@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Comment, CaptchaChallenge
 from .serializers import CommentSerializer, CommentCreateSerializer
-from .utils import generate_captcha_text, generate_captcha_image, resize_image_if_needed
+from .utils import generate_captcha_text, generate_captcha_image
 from .tasks import notify_new_comment
 
 
@@ -30,9 +30,6 @@ class CommentListCreateView(generics.ListCreateAPIView):
         return CommentSerializer
 
     def create(self, request, *args, **kwargs):
-        if 'image' in request.FILES:
-            request.FILES['image'] = resize_image_if_needed(request.FILES['image'])
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = serializer.save()
